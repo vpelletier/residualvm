@@ -104,6 +104,7 @@ struct Rect {
 
 	int16 width() const { return right - left; }
 	int16 height() const { return bottom - top; }
+	int area() const { return width() * height(); }
 
 	void setWidth(int16 aWidth) {
 		right = left + aWidth;
