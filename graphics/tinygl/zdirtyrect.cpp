@@ -45,6 +45,9 @@ void tglIssueDrawCall(Graphics::DrawCall *drawCall) {
 static void tglDrawRectangle(Common::Rect rect, int r, int g, int b) {
 	TinyGL::GLContext *c = TinyGL::gl_get_context();
 
+#if TGL_DIRTY_RECT_STATISTICS > 1
+	warning("%i..%ix%i..%i", rect.left, rect.right, rect.top, rect.bottom);
+#endif
 	assert(rect.left >= 0);
 	assert(rect.left < rect.right);
 	assert(rect.right <= c->fb->xsize);
@@ -128,6 +131,19 @@ static void tglPresentBufferDirtyRects(TinyGL::GLContext *c) {
 	DrawCallIterator itPrevFrame = c->_previousFrameDrawCallsQueue.begin();
 	DrawCallIterator endPrevFrame = c->_previousFrameDrawCallsQueue.end();
 
+#if TGL_DIRTY_RECT_STATISTICS
+	int equal_draw_call_count = 0;
+	int previous_draw_call_count = c->_previousFrameDrawCallsQueue.size();
+	int current_draw_call_count = c->_drawCallsQueue.size();
+	int merge_restart_count = 0;
+	int merge_comparison_count = 0;
+	int initial_dirty_rect_count = 0;
+	int discard_count = 0;
+	int stitch_count = 0;
+	int extend_count = 0;
+	int split_count = 0;
+	int truncate_count = 0;
+#endif
 	// Compare draw calls.
 #define LOOKAHEAD 10
 	int lookahead_match_in = 0; /* 0 means no match found in look-ahead */
@@ -137,7 +153,7 @@ static void tglPresentBufferDirtyRects(TinyGL::GLContext *c) {
 			const Graphics::DrawCall &previousCall = **itPrevFrame;
 
 			if ((lookahead_match_in && --lookahead_match_in) || previousCall != currentCall) {
-				_appendDirtyRectangle(currentCall, rectangles, 255, 0, 0);
+				_appendDirtyRectangle(currentCall, rectangles, 0, 255, 0);
 				if (lookahead_match_in == 0) {
 					DrawCallIterator lookaheadFrame = DrawCallIterator(itFrame);
 					unsigned int lookahead = LOOKAHEAD;
@@ -149,43 +165,328 @@ static void tglPresentBufferDirtyRects(TinyGL::GLContext *c) {
 					}
 				}
 				if (lookahead_match_in == 0) {
-					_appendDirtyRectangle(previousCall, rectangles, 255, 255, 255);
+					_appendDirtyRectangle(previousCall, rectangles, 255, 0, 0);
 					++itPrevFrame;
 				}
 			}
 			else {
 				++itPrevFrame;
+#if TGL_DIRTY_RECT_STATISTICS
+				equal_draw_call_count++;
+#endif
 			}
 	}
 
 	for ( ; itPrevFrame != endPrevFrame; ++itPrevFrame) {
-		_appendDirtyRectangle(**itPrevFrame, rectangles, 255, 255, 255);
+		_appendDirtyRectangle(**itPrevFrame, rectangles, 255, 0, 0);
 	}
 
 	for ( ; itFrame != endFrame; ++itFrame) {
-		_appendDirtyRectangle(**itFrame, rectangles, 255, 0, 0);
+		_appendDirtyRectangle(**itFrame, rectangles, 0, 255, 0);
 	}
-
-	// This loop increases outer rectangle coordinates to favor merging of adjacent rectangles.
-	for (RectangleIterator it = rectangles.begin(); it != rectangles.end(); ++it) {
-		(*it).rectangle.right++;
-		(*it).rectangle.bottom++;
-	}
+#if TGL_DIRTY_RECT_STATISTICS
+	initial_dirty_rect_count = rectangles.size();
+#endif
 
 	// Merge coalesce dirty rects.
 	bool restartMerge;
 	do {
+#if TGL_DIRTY_RECT_STATISTICS
+		merge_restart_count += 1;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+		if (initial_dirty_rect_count) {
+			warning("Loop start");
+		}
+#endif
+#endif
 		restartMerge = false;
 		for (RectangleIterator it1 = rectangles.begin(); it1 != rectangles.end(); ++it1) {
+#if TGL_DIRTY_RECT_STATISTICS > 1
+			warning("Comparing %i..%ix%i..%i ...",
+				(*it1).rectangle.left,
+				(*it1).rectangle.right,
+				(*it1).rectangle.top,
+				(*it1).rectangle.bottom
+			);
+#endif
 			for (RectangleIterator it2 = rectangles.begin(); it2 != rectangles.end();) {
-				if (it1 != it2) {
-					if ((*it1).rectangle.intersects((*it2).rectangle)) {
-						(*it1).rectangle.extend((*it2).rectangle);
+				if (it1 == it2) {
+					++it2;
+					continue;
+				}
+#if TGL_DIRTY_RECT_STATISTICS
+				merge_comparison_count += 1;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+				warning("  ... with %i..%ix%i..%i",
+					(*it2).rectangle.left,
+					(*it2).rectangle.right,
+					(*it2).rectangle.top,
+					(*it2).rectangle.bottom
+				);
+#endif
+#endif
+				if ((*it1).rectangle.contains((*it2).rectangle)) {
+					it2 = rectangles.erase(it2);
+					restartMerge = true;
+#if TGL_DIRTY_RECT_STATISTICS
+					discard_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+					warning("  1 contains 2, discard 2");
+#endif
+#endif
+				} else if ((*it1).rectangle.intersects((*it2).rectangle)) {
+					Common::Rect extended_rect(
+						(*it1).rectangle.left,
+						(*it1).rectangle.top,
+						(*it1).rectangle.right,
+						(*it1).rectangle.bottom
+					);
+					extended_rect.extend((*it2).rectangle);
+					if (extended_rect.area() <= (*it1).rectangle.area() + (*it2).rectangle.area()) {
+						// it1 and it2 intersect enough that a merge saves pixels
+						// Note: this causes a suboptimal number of pixels to be rendered, but can save a substancial number of rectangles by biasing toward merges.
+						(*it1).rectangle = extended_rect;
+						(*it1).r |= (*it2).r;
+						(*it1).g |= (*it2).g;
+						(*it1).b |= (*it2).b;
 						it2 = rectangles.erase(it2);
 						restartMerge = true;
+#if TGL_DIRTY_RECT_STATISTICS
+						extend_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+						warning("  merging with 2: %i..%ix%i..%i",
+							(*it1).rectangle.left,
+							(*it1).rectangle.top,
+							(*it1).rectangle.right,
+							(*it1).rectangle.bottom
+						);
+#endif
+#endif
 					} else {
-						++it2;
+						// it1 and it2 intersect, but not enough to justify a merge
+						// There are 4 truncations possibilities when one rectangle is cut by a single edge of the other
+						// There are 2 split-in-two possibilities when one rectangle if cut by two opposite edges of the other
+						// There are 4 split-in-two possibilities when one rectangle contains a corner of the other
+						const bool it2_exists_left = (*it2).rectangle.left < (*it1).rectangle.left;
+						const bool it2_exists_right = (*it1).rectangle.right < (*it2).rectangle.right;
+						const bool it2_exists_above = (*it2).rectangle.top < (*it1).rectangle.top;
+						const bool it2_exists_below = (*it1).rectangle.bottom < (*it2).rectangle.bottom;
+						if (!it2_exists_above && !it2_exists_below) {
+							// vertical-edge-split cases (1 or 2 edges)
+							if (it2_exists_left) {
+								if (it2_exists_right) {
+									// opposite edge split-in-two 1: it2 traverses it1 horizontaly
+									rectangles.push_back(DirtyRectangle(Common::Rect(
+										(*it1).rectangle.right,
+										(*it2).rectangle.top,
+										(*it2).rectangle.right,
+										(*it2).rectangle.bottom
+									), (*it2).r, (*it2).g, 255));
+#if TGL_DIRTY_RECT_STATISTICS
+									split_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+									warning("  2 traverses 1 horisontally, creating %i..%ix%i..%i and 2.right=%i",
+										(*it1).rectangle.right,
+										(*it2).rectangle.right,
+										(*it2).rectangle.top,
+										(*it2).rectangle.bottom,
+										(*it1).rectangle.left
+									);
+#endif
+								} else {
+									truncate_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+									warning("  2.right=%i", (*it1).rectangle.left);
+#endif
+#endif
+								}
+								// truncation 1: it2 left of it1
+								(*it2).rectangle.right = (*it1).rectangle.left;
+							} else {
+								// truncation 2: it2 right of it1
+								(*it2).rectangle.left = (*it1).rectangle.right;
+#if TGL_DIRTY_RECT_STATISTICS
+								truncate_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+								warning("  2.left=%i", (*it1).rectangle.right);
+#endif
+#endif
+							}
+							(*it2).b = 255;
+							assert((*it2).rectangle.isValidRect());
+							restartMerge = true;
+						} else if (!it2_exists_left && !it2_exists_right) {
+							// horizontal-edge-split cases (1 or 2 edges)
+							if (it2_exists_above) {
+								if (it2_exists_below) {
+									// opposite edge split-in-two 2: it2 traverses it1 verticaly
+									rectangles.push_back(DirtyRectangle(Common::Rect(
+										(*it2).rectangle.left,
+										(*it1).rectangle.bottom,
+										(*it2).rectangle.right,
+										(*it2).rectangle.bottom
+									), (*it2).r, (*it2).g, 255));
+#if TGL_DIRTY_RECT_STATISTICS
+									split_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+									warning("  2 traverses 1 verticaly, creating %i..%ix%i..%i and 2.bottom=%i",
+										(*it2).rectangle.left,
+										(*it2).rectangle.right,
+										(*it1).rectangle.bottom,
+										(*it2).rectangle.bottom,
+										(*it1).rectangle.top
+									);
+#endif
+								} else {
+									truncate_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+									warning("  2.bottom=%i", (*it1).rectangle.top);
+#endif
+#endif
+								}
+								// truncation 3: it2 above it1
+								(*it2).rectangle.bottom = (*it1).rectangle.top;
+							} else {
+								// truncation 4: it2 below it1
+								(*it2).rectangle.top = (*it1).rectangle.bottom;
+#if TGL_DIRTY_RECT_STATISTICS
+								truncate_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+								warning("  2.top=%i", (*it1).rectangle.bottom);
+#endif
+#endif
+							}
+							(*it2).b = 255;
+							assert((*it2).rectangle.isValidRect());
+							restartMerge = true;
+						} else if (it2_exists_above && !it2_exists_below && it2_exists_left != it2_exists_right) {
+							// top corner-split cases
+							rectangles.push_back(DirtyRectangle(Common::Rect(
+								(*it2).rectangle.left,
+								(*it2).rectangle.top,
+								(*it2).rectangle.right,
+								(*it1).rectangle.top
+							), (*it2).r, (*it2).g, 255));
+							if (it2_exists_right) {
+								// corner split-in-two 1: it2 contains it1 top-right corner
+#if TGL_DIRTY_RECT_STATISTICS > 1
+								warning("  2 contains 1 top-right, creating %i..%ix%i..%i and 2.top=%i and 2.left=%i",
+									(*it2).rectangle.left,
+									(*it2).rectangle.right,
+									(*it2).rectangle.top,
+									(*it1).rectangle.top,
+									(*it1).rectangle.top,
+									(*it1).rectangle.right
+								);
+#endif
+								(*it2).rectangle.left = (*it1).rectangle.right;
+							} else {
+								// corner split-in-two 2: it2 contains it1 top-left corner
+#if TGL_DIRTY_RECT_STATISTICS > 1
+								warning("  2 contains 1 top-left, creating %i..%ix%i..%i and 2.top=%i and 2.right=%i",
+									(*it2).rectangle.left,
+									(*it2).rectangle.right,
+									(*it2).rectangle.top,
+									(*it1).rectangle.top,
+									(*it1).rectangle.top,
+									(*it1).rectangle.left
+								);
+#endif
+								(*it2).rectangle.right = (*it1).rectangle.left;
+							}
+							(*it2).rectangle.top = (*it1).rectangle.top;
+							(*it2).b = 255;
+							assert((*it2).rectangle.isValidRect());
+							restartMerge = true;
+#if TGL_DIRTY_RECT_STATISTICS
+							split_count++;
+#endif
+						} else if (it2_exists_below && !it2_exists_above && it2_exists_left != it2_exists_right) {
+							// bottom corner-split cases
+							rectangles.push_back(DirtyRectangle(Common::Rect(
+								(*it2).rectangle.left,
+								(*it1).rectangle.bottom,
+								(*it2).rectangle.right,
+								(*it2).rectangle.bottom
+							), (*it2).r, (*it2).g, 255));
+							if (it2_exists_right) {
+								// corner split-in-two 2: it2 contains it1 bottom-right corner
+#if TGL_DIRTY_RECT_STATISTICS > 1
+								warning("  2 contains 1 bottom-right, creating %i..%ix%i..%i and 2.bottom=%i and 2.left=%i",
+									(*it2).rectangle.left,
+									(*it2).rectangle.right,
+									(*it1).rectangle.bottom,
+									(*it2).rectangle.bottom,
+									(*it1).rectangle.bottom,
+									(*it1).rectangle.right
+								);
+#endif
+								(*it2).rectangle.left = (*it1).rectangle.right;
+							} else {
+								// corner split-in-two 4: it2 contains it1 bottom-left corner
+#if TGL_DIRTY_RECT_STATISTICS > 1
+								warning("  2 contains 1 bottom-left, creating %i..%ix%i..%i and 2.bottom=%i and 2.right=%i",
+									(*it2).rectangle.left,
+									(*it2).rectangle.right,
+									(*it1).rectangle.bottom,
+									(*it2).rectangle.bottom,
+									(*it1).rectangle.bottom,
+									(*it1).rectangle.left
+								);
+#endif
+								(*it2).rectangle.right = (*it1).rectangle.left;
+							}
+							(*it2).rectangle.bottom = (*it1).rectangle.bottom;
+							(*it2).b = 255;
+							assert((*it2).rectangle.isValidRect());
+							restartMerge = true;
+#if TGL_DIRTY_RECT_STATISTICS
+							split_count++;
+#endif
+						}
+						// Else, it2 contains two corners of it1: it1 must be truncated,
+						// and will be at some later iteration.
+						if ((*it2).rectangle.isEmpty()) {
+#if TGL_DIRTY_RECT_STATISTICS > 1
+							warning("    ...but resulting 2 is empty, discarding");
+#endif
+							it2 = rectangles.erase(it2);
+						} else {
+							++it2;
+						}
 					}
+				} else if (
+					(
+						(*it1).rectangle.left == (*it2).rectangle.left &&
+						(*it1).rectangle.right == (*it2).rectangle.right &&
+						(*it1).rectangle.top <= (*it2).rectangle.bottom &&
+						(*it2).rectangle.top <= (*it1).rectangle.bottom
+					) || (
+						(*it1).rectangle.top == (*it2).rectangle.top &&
+						(*it1).rectangle.bottom == (*it2).rectangle.bottom &&
+						(*it1).rectangle.left <= (*it2).rectangle.right &&
+						(*it2).rectangle.left <= (*it1).rectangle.right
+					)
+				) {
+					// 2 opposite common edges and intersecting/touching
+					(*it1).rectangle.extend((*it2).rectangle);
+					assert((*it1).rectangle.isValidRect());
+					(*it1).r |= (*it2).r;
+					(*it1).g |= (*it2).g;
+					(*it1).b |= (*it2).b;
+					it2 = rectangles.erase(it2);
+					restartMerge = true;
+#if TGL_DIRTY_RECT_STATISTICS
+					stitch_count++;
+#if TGL_DIRTY_RECT_STATISTICS > 1
+					warning("  common opposite edges, stitch and 1 becomes %i..%ix%i..%i",
+						(*it1).rectangle.left,
+						(*it1).rectangle.right,
+						(*it1).rectangle.top,
+						(*it1).rectangle.bottom
+					);
+#endif
+#endif
 				} else {
 					++it2;
 				}
@@ -193,19 +494,10 @@ static void tglPresentBufferDirtyRects(TinyGL::GLContext *c) {
 		}
 	} while(restartMerge);
 
-	for (RectangleIterator it1 = rectangles.begin(); it1 != rectangles.end(); ++it1) {
-		RectangleIterator it2 = it1;
-		it2++;
-		while (it2 != rectangles.end()) {
-			if ((*it1).rectangle.contains((*it2).rectangle)) {
-				it2 = rectangles.erase(it2);
-			} else {
-				++it2;
-			}
-		}
-	}
-
 	if (!rectangles.empty()) {
+#if TGL_DIRTY_RECT_STATISTICS
+		warning("Common calls: %i Diverging previous: %i Diverging current: %i Raw dirty rects: %i Merged dirty rects: %i Discarded: %i Stitched: %i Extended: %i Split: %i Truncated: %i Loop restarts: %i Comparisons: %i", equal_draw_call_count, previous_draw_call_count - equal_draw_call_count, current_draw_call_count - equal_draw_call_count, initial_dirty_rect_count, rectangles.size(), discard_count, stitch_count, extend_count, split_count, truncate_count, merge_restart_count, merge_comparison_count);
+#endif
 		// Execute draw calls.
 		for (DrawCallIterator it = c->_drawCallsQueue.begin(); it != c->_drawCallsQueue.end(); ++it) {
 			Common::Rect drawCallRegion = (*it)->getDirtyRegion();
@@ -218,9 +510,10 @@ static void tglPresentBufferDirtyRects(TinyGL::GLContext *c) {
 		}
 #if TGL_DIRTY_RECT_SHOW
 		// Draw debug rectangles.
-		// Note: white rectangles are rectangle that contained other rectangles
-		// blue rectangles are rectangle merged from other rectangles
-		// red rectangles are original dirty rects
+		// Note:
+		// red hue rectangles are diverging calls from previous frame
+		// green hue rectangles are diverging calls from current frame
+		// blue hue rectangles are truncated or split rectangles
 
 		bool blendingEnabled = c->fb->isBlendingEnabled();
 		bool alphaTestEnabled = c->fb->isAlphaTestEnabled();
