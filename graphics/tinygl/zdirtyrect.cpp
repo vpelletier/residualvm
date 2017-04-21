@@ -129,14 +129,32 @@ static void tglPresentBufferDirtyRects(TinyGL::GLContext *c) {
 	DrawCallIterator endPrevFrame = c->_previousFrameDrawCallsQueue.end();
 
 	// Compare draw calls.
+#define LOOKAHEAD 10
+	int lookahead_match_in = 0; /* 0 means no match found in look-ahead */
 	for ( ; itPrevFrame != endPrevFrame && itFrame != endFrame;
-		++itPrevFrame, ++itFrame) {
+		++itFrame) {
 			const Graphics::DrawCall &currentCall = **itFrame;
 			const Graphics::DrawCall &previousCall = **itPrevFrame;
 
-			if (previousCall != currentCall) {
-				_appendDirtyRectangle(previousCall, rectangles, 255, 255, 255);
+			if ((lookahead_match_in && --lookahead_match_in) || previousCall != currentCall) {
 				_appendDirtyRectangle(currentCall, rectangles, 255, 0, 0);
+				if (lookahead_match_in == 0) {
+					DrawCallIterator lookaheadFrame = DrawCallIterator(itFrame);
+					unsigned int lookahead = LOOKAHEAD;
+					while (++lookaheadFrame != endFrame && --lookahead) {
+						if (previousCall == **lookaheadFrame) {
+							lookahead_match_in = LOOKAHEAD - lookahead;
+							break;
+						}
+					}
+				}
+				if (lookahead_match_in == 0) {
+					_appendDirtyRectangle(previousCall, rectangles, 255, 255, 255);
+					++itPrevFrame;
+				}
+			}
+			else {
+				++itPrevFrame;
 			}
 	}
 
