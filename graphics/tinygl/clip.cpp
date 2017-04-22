@@ -246,14 +246,11 @@ static inline void updateTmp(GLContext *c, GLVertex *q, GLVertex *p0, GLVertex *
 static void gl_draw_triangle_clip(GLContext *c, GLVertex *p0, GLVertex *p1, GLVertex *p2, int clip_bit);
 
 void gl_draw_triangle(GLContext *c, GLVertex *p0, GLVertex *p1, GLVertex *p2) {
-	int co, cc[3], front;
+	int co;
+	bool front;
 	float norm;
 
-	cc[0] = p0->clip_code;
-	cc[1] = p1->clip_code;
-	cc[2] = p2->clip_code;
-
-	co = cc[0] | cc[1] | cc[2];
+	co = p0->clip_code | p1->clip_code | p2->clip_code;
 
 	// we handle the non clipped case here to go faster
 	if (co == 0) {
@@ -262,18 +259,17 @@ void gl_draw_triangle(GLContext *c, GLVertex *p0, GLVertex *p1, GLVertex *p2) {
 		if (norm == 0)
 			return;
 
-		front = norm < 0.0;
-		front = front ^ c->current_front_face;
+		front = (norm < 0.0) ^ c->current_front_face;
 
 		// back face culling
 		if (c->cull_face_enabled) {
 			// most used case first */
 			if (c->current_cull_face == TGL_BACK) {
-				if (front == 0)
+				if (!front)
 					return;
 				c->draw_triangle_front(c, p0, p1, p2);
 			} else if (c->current_cull_face == TGL_FRONT) {
-				if (front != 0)
+				if (front)
 					return;
 				c->draw_triangle_back(c, p0, p1, p2);
 			} else {

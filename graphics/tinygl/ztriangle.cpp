@@ -90,14 +90,10 @@ FORCEINLINE static void putPixelTextureMappingPerspective(FrameBuffer *buffer, i
 		c_g = (col >> textureFormat.gShift) & 0xFF;
 		c_b = (col >> textureFormat.bShift) & 0xFF;
 		if (kLightsMode) {
-			unsigned int l_a = (a / 256);
-			unsigned int l_r = (r / 256);
-			unsigned int l_g = (g / 256);
-			unsigned int l_b = (b / 256);
-			c_a = (c_a * l_a) / 256;
-			c_r = (c_r * l_r) / 256;
-			c_g = (c_g * l_g) / 256;
-			c_b = (c_b * l_b) / 256;
+			c_a = (c_a * (a / 256)) / 256;
+			c_r = (c_r * (r / 256)) / 256;
+			c_g = (c_g * (g / 256)) / 256;
+			c_b = (c_b * (b / 256)) / 256;
 		}
 		buffer->writePixel<kEnableAlphaTest, kEnableBlending, kDepthWrite>(buf + _a, c_a, c_r, c_g, c_b, z);
 	}
@@ -240,14 +236,14 @@ void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint 
 	// screen coordinates
 
 	int pp1 = xsize * p0->y;
-	pz1 = _zbuf + p0->y * xsize;
+	pz1 = _zbuf + pp1;
 
 	switch (kDrawLogic) {
 	case DRAW_SHADOW_MASK:
-		pm1 = shadow_mask_buf + p0->y * xsize;
+		pm1 = shadow_mask_buf + pp1;
 		break;
 	case DRAW_SHADOW:
-		pm1 = shadow_mask_buf + p0->y * xsize;
+		pm1 = shadow_mask_buf + pp1;
 		r1 = shadow_color_r;
 		g1 = shadow_color_g;
 		b1 = shadow_color_b;
@@ -402,17 +398,16 @@ void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint 
 							putPixelDepth<kDepthWrite, kEnableScissor>(this, buf, pz, 2, x, y, z, dzdx);
 							putPixelDepth<kDepthWrite, kEnableScissor>(this, buf, pz, 3, x, y, z, dzdx);
 							buf += 4;
-						}
-						if (kDrawLogic == DRAW_FLAT) {
+						} else if (kDrawLogic == DRAW_FLAT) {
 							putPixelFlat<kDepthWrite, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled>(this, pp, pz, 0, x, y, z, r, g, b, a, dzdx);
 							putPixelFlat<kDepthWrite, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled>(this, pp, pz, 1, x, y, z, r, g, b, a, dzdx);
 							putPixelFlat<kDepthWrite, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled>(this, pp, pz, 2, x, y, z, r, g, g, a, dzdx);
 							putPixelFlat<kDepthWrite, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled>(this, pp, pz, 3, x, y, z, r, g, b, a, dzdx);
+							pp += 4;
 						}
 						if (kInterpZ) {
 							pz += 4;
 						}
-						pp += 4;
 						n -= 4;
 						x += 4;
 					}
@@ -420,14 +415,13 @@ void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint 
 						if (kDrawLogic == DRAW_DEPTH_ONLY) {
 							putPixelDepth<kDepthWrite, kEnableScissor>(this, buf, pz, 0, x, y, z, dzdx);
 							buf ++;
-						}
-						if (kDrawLogic == DRAW_FLAT) {
+						} else if (kDrawLogic == DRAW_FLAT) {
 							putPixelFlat<kDepthWrite, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled>(this, pp, pz, 0, x, y, z, r, g, b, a, dzdx);
+							pp += 1;
 						}
 						if (kInterpZ) {
 							pz += 1;
 						}
-						pp += 1;
 						n -= 1;
 						x += 1;
 					}

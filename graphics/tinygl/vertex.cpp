@@ -194,14 +194,12 @@ static inline void gl_vertex_transform(GLContext *c, GLVertex *v) {
 
 void glopVertex(GLContext *c, GLParam *p) {
 	GLVertex *v;
-	int n, cnt;
+	int n;
 
 	assert(c->in_begin != 0);
 
-	n = c->vertex_n;
-	cnt = c->vertex_cnt;
-	cnt++;
-	c->vertex_cnt = cnt;
+	n = c->vertex_n++;
+	++c->vertex_cnt;
 
 	// quick fix to avoid crashes on large polygons
 	if (n >= c->vertex_max) {
@@ -217,7 +215,6 @@ void glopVertex(GLContext *c, GLParam *p) {
 	}
 	// new vertex entry
 	v = &c->vertex[n];
-	n++;
 
 	v->coord.X = p[1].f;
 	v->coord.Y = p[2].f;
@@ -250,8 +247,6 @@ void glopVertex(GLContext *c, GLParam *p) {
 	// edge flag
 
 	v->edge_flag = c->current_edge_flag;
-
-	c->vertex_n = n;
 }
 
 void glopEnd(GLContext *c, GLParam *) {
