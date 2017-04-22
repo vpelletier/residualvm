@@ -40,21 +40,19 @@ FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, int color, int 
 
 template <bool kDepthWrite, bool kEnableScissor>
 FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, int color, int x, int y, unsigned int z) {
-	if (kEnableScissor && scissorPixel(x, y)) {
-		return;
-	}
-	unsigned int *pz = _zbuf + pixelOffset;
-	if (compareDepth(z, *pz)) {
-		writePixel<true, true, kDepthWrite>(pixelOffset, color, z);
+	if (!kEnableScissor || scissorPixel(x, y)) {
+		unsigned int *pz = _zbuf + pixelOffset;
+		if (compareDepth(z, *pz)) {
+			writePixel<true, true, kDepthWrite>(pixelOffset, color, z);
+		}
 	}
 }
 
 template <bool kEnableScissor>
 FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, int color, int x, int y) {
-	if (kEnableScissor && scissorPixel(x, y)) {
-		return;
+	if (!kEnableScissor || scissorPixel(x, y)) {
+		writePixel<true, true>(pixelOffset, color);
 	}
-	writePixel<true, true>(pixelOffset, color);
 }
 
 template <bool kInterpRGB, bool kInterpZ, bool kDepthWrite>

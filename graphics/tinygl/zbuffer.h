@@ -226,7 +226,7 @@ struct FrameBuffer {
 	}
 
 	FORCEINLINE bool scissorPixel(int x, int y) {
-		return !_clipRectangle.contains(x, y);
+		return _clipRectangle.contains(x, y);
 	}
 
 	FORCEINLINE void writePixel(int pixel, byte aSrc, byte rSrc, byte gSrc, byte bSrc) {
