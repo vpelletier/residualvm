@@ -246,7 +246,7 @@ static inline void updateTmp(GLContext *c, GLVertex *q, GLVertex *p0, GLVertex *
 static void gl_draw_triangle_clip(GLContext *c, GLVertex *p0, GLVertex *p1, GLVertex *p2, int clip_bit);
 
 void gl_draw_triangle(GLContext *c, GLVertex *p0, GLVertex *p1, GLVertex *p2) {
-	int co, c_and, cc[3], front;
+	int co, cc[3], front;
 	float norm;
 
 	cc[0] = p0->clip_code;
@@ -288,10 +288,7 @@ void gl_draw_triangle(GLContext *c, GLVertex *p0, GLVertex *p1, GLVertex *p2) {
 			}
 		}
 	} else {
-		c_and = cc[0] & cc[1] & cc[2];
-		if (c_and == 0) {
-			gl_draw_triangle_clip(c, p0, p1, p2, 0);
-		}
+		gl_draw_triangle_clip(c, p0, p1, p2, 0);
 	}
 }
 
