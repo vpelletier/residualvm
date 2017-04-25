@@ -641,8 +641,6 @@ void GrimEngine::updateNormalMode() {
 
 	drawNormalMode();
 
-	g_driver->drawBuffers();
-
 	_iris->draw();
 	drawTextObjects();
 }
@@ -1016,12 +1014,8 @@ void GrimEngine::savegameRestore() {
 	invalidateActiveActorsList();
 	buildActiveActorsList();
 
-	g_driver->refreshBuffers();
 	_currSet->setupCamera();
 	g_driver->set3DMode();
-	foreach (Actor *a, Actor::getPool()) {
-		a->restoreCleanBuffer();
-	}
 }
 
 void GrimEngine::restoreGRIM() {
@@ -1264,9 +1258,7 @@ void GrimEngine::setSet(Set *scene) {
 	// and coords change too.
 	foreach (Actor *a, Actor::getPool()) {
 		a->stopWalking();
-		a->clearCleanBuffer();
 	}
-	g_driver->refreshBuffers();
 
 	Set *lastSet = _currSet;
 	_currSet = scene;
@@ -1283,11 +1275,6 @@ void GrimEngine::setSet(Set *scene) {
 void GrimEngine::makeCurrentSetup(int num) {
 	int prevSetup = g_grim->getCurrSet()->getSetup();
 	if (prevSetup != num) {
-		foreach (Actor *a, Actor::getPool()) {
-			a->clearCleanBuffer();
-		}
-		g_driver->refreshBuffers();
-
 		getCurrSet()->setSetup(num);
 		getCurrSet()->setSoundParameters(20, 127);
 		cameraChangeHandle(prevSetup, num);
@@ -1337,7 +1324,7 @@ void GrimEngine::buildActiveActorsList() {
 
 	_activeActors.clear();
 	foreach (Actor *a, Actor::getPool()) {
-		if (((_mode == NormalMode || _mode == DrawMode) && a->isInSet(_currSet->getName())) ||
+		if (((_mode == NormalMode || _mode == DrawMode) && a->isDrawableInSet(_currSet->getName())) ||
 		    a->isInOverworld()) {
 			_activeActors.push_back(a);
 		}
