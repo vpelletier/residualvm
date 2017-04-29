@@ -243,29 +243,8 @@ void glopTexImage2D(GLContext *c, GLParam *p) {
 	if (border != 0)
 		error("tglTexImage2D: invalid border");
 
-	Graphics::PixelFormat pf;
-	switch (format) {
-		case TGL_RGBA:
-		case TGL_RGB:
-#if defined(SCUMM_BIG_ENDIAN)
-			pf = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
-#elif defined(SCUMM_LITTLE_ENDIAN)
-			pf = Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
-#endif
-			break;
-		case TGL_BGRA:
-		case TGL_BGR:
-#if defined(SCUMM_BIG_ENDIAN)
-			pf = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 0, 8, 16);
-#elif defined(SCUMM_LITTLE_ENDIAN)
-			pf = Graphics::PixelFormat(4, 8, 8, 8, 8, 16, 8, 0, 24);
-#endif
-			break;
-		default:
-			break;
-	}
 	Graphics::PixelBuffer internal(
-		pf,
+		Graphics::PixelFormat(4, 8, 8, 8, 8, 16, 8, 0, 24),
 		c->_textureSize * c->_textureSize,
 		DisposeAfterUse::NO
 	);
