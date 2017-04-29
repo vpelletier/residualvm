@@ -278,6 +278,8 @@ struct GLContext {
 	// textures
 	GLTexture *current_texture;
 	int texture_2d_enabled;
+	int texture_mag_filter;
+	int texture_min_filter;
 
 	// shared state
 	GLSharedState shared_state;

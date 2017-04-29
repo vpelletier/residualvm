@@ -96,6 +96,8 @@ void glInitTextures(GLContext *c) {
 	// textures
 	c->texture_2d_enabled = 0;
 	c->current_texture = find_texture(c, 0);
+	c->texture_mag_filter = TGL_LINEAR;
+	c->texture_min_filter = TGL_NEAREST_MIPMAP_LINEAR;
 }
 
 void glopBindTexture(GLContext *c, GLParam *p) {
@@ -177,11 +179,28 @@ void glopTexImage2D(GLContext *c, GLParam *p) {
 	if (pixels != NULL) {
 		Graphics::PixelBuffer src(sourceFormat, pixels);
 		if (width != c->_textureSize || height != c->_textureSize) {
-			// we use interpolation for better looking result
-			gl_resizeImage(
-				internal, c->_textureSize, c->_textureSize,
-				src, width, height
-			);
+			int filter;
+			// XXX: per-direction filtering ?
+			if (width > c->_textureSize || height > c->_textureSize)
+				filter = c->texture_mag_filter;
+			else
+				filter = c->texture_min_filter;
+			switch (filter) {
+			case TGL_LINEAR_MIPMAP_NEAREST:
+			case TGL_LINEAR_MIPMAP_LINEAR:
+			case TGL_LINEAR:
+				gl_resizeImage(
+					internal, c->_textureSize, c->_textureSize,
+					src, width, height
+				);
+				break;
+			default:
+				gl_resizeImageNoInterpolate(
+					internal, c->_textureSize, c->_textureSize,
+					src, width, height
+				);
+				break;
+			}
 		} else {
 			internal.copyBuffer(
 				0,
@@ -219,7 +238,7 @@ error:
 }
 
 // TODO: not all tests are done
-void glopTexParameter(GLContext *, GLParam *p) {
+void glopTexParameter(GLContext *c, GLParam *p) {
 	int target = p[1].i;
 	int pname = p[2].i;
 	int param = p[3].i;
@@ -234,6 +253,30 @@ error:
 	case TGL_TEXTURE_WRAP_T:
 		if (param != TGL_REPEAT)
 			goto error;
+		break;
+	case TGL_TEXTURE_MAG_FILTER:
+		switch (param) {
+		case TGL_NEAREST:
+		case TGL_LINEAR:
+			c->texture_mag_filter = param;
+			break;
+		default:
+			goto error;
+		}
+		break;
+	case TGL_TEXTURE_MIN_FILTER:
+		switch (param) {
+		case TGL_LINEAR_MIPMAP_NEAREST:
+		case TGL_LINEAR_MIPMAP_LINEAR:
+		case TGL_NEAREST_MIPMAP_NEAREST:
+		case TGL_NEAREST_MIPMAP_LINEAR:
+		case TGL_NEAREST:
+		case TGL_LINEAR:
+			c->texture_min_filter = param;
+			break;
+		default:
+			goto error;
+		}
 		break;
 	default:
 		;
