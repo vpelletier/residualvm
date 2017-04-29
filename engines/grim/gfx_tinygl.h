@@ -75,7 +75,7 @@ public:
 	void translateViewpointStart() override;
 	void translateViewpoint(const Math::Vector3d &vec) override;
 	void rotateViewpoint(const Math::Angle &angle, const Math::Vector3d &axis) override;
-	void rotateViewpoint(const Math::Matrix4 &matrix) override;
+	void rotateViewpoint(const Math::Matrix4 &rot) override;
 	void translateViewpointFinish() override;
 
 	void drawEMIModelFace(const EMIModel *model, const EMIMeshFace *face) override;
@@ -98,17 +98,16 @@ public:
 	void createFont(Font *font) override;
 	void destroyFont(Font *font) override;
 
-	void drawTextObject(const TextObject *text) override;
 	void createTextObject(TextObject *text) override;
+	void drawTextObject(const TextObject *text) override;
 	void destroyTextObject(TextObject *text) override;
-
-	void dimScreen() override;
-	void dimRegion(int x, int y, int w, int h, float level) override;
-	void irisAroundRegion(int x1, int y1, int x2, int y2) override;
 
 	Bitmap *getScreenshot(int w, int h, bool useStored) override;
 	void storeDisplay() override;
 	void copyStoredToDisplay() override;
+	void dimScreen() override;
+	void dimRegion(int x, int y, int w, int h, float level) override;
+	void irisAroundRegion(int x1, int y1, int x2, int y2) override;
 
 	void drawEmergString(int x, int y, const char *text, const Color &fgColor) override;
 	void loadEmergFont() override;
@@ -125,8 +124,7 @@ public:
 	void setBlendMode(bool additive) override;
 
 protected:
-	void createSpecialtyTextureFromScreen(uint id, uint8 *data, int x, int y, int width, int height);
-
+	void createSpecialtyTextureFromScreen(uint id, uint8 *data, int x, int y, int width, int height) override;
 private:
 	TinyGL::FrameBuffer *_zb;
 	Graphics::PixelFormat _pixelFormat;
@@ -134,6 +132,7 @@ private:
 	Graphics::BlitImage *_smushImage;
 	Graphics::PixelBuffer _storedDisplay;
 	float _alpha;
+	TGLint _maxLights;
 	const Actor *_currentActor;
 	TGLenum _depthFunc;
 
