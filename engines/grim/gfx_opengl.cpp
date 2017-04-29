@@ -248,11 +248,11 @@ void GfxOpenGL::positionCamera(const Math::Vector3d &pos, const Math::Vector3d &
 
 	Math::Matrix4 lookMatrix = Math::makeLookAtMatrix(pos, interest, up_vec);
 	glMultMatrixf(lookMatrix.getData());
-	glTranslated(-pos.x(), -pos.y(), -pos.z());
+	glTranslatef(-pos.x(), -pos.y(), -pos.z());
 }
 
 void GfxOpenGL::positionCamera(const Math::Vector3d &pos, const Math::Matrix4 &rot) {
-	glScaled(1, 1, -1);
+	glScalef(1, 1, -1);
 	_currentPos = pos;
 	_currentRot = rot;
 }
@@ -434,16 +434,16 @@ void GfxOpenGL::getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, in
 		return;
 	}
 
-	GLdouble top = 1000;
-	GLdouble right = -1000;
-	GLdouble left = 1000;
-	GLdouble bottom = -1000;
+	GLfloat top = 1000;
+	GLfloat right = -1000;
+	GLfloat left = 1000;
+	GLfloat bottom = -1000;
 
-	GLdouble modelView[16], projection[16];
+	GLfloat modelView[16], projection[16];
 	GLint viewPort[4];
 
-	glGetDoublev(GL_MODELVIEW_MATRIX, modelView);
-	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
+	glGetFloatv(GL_PROJECTION_MATRIX, projection);
 	glGetIntegerv(GL_VIEWPORT, viewPort);
 
 	for (uint i = 0; i < model->_numFaces; i++) {
@@ -453,7 +453,7 @@ void GfxOpenGL::getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, in
 			int index = indices[j];
 			Math::Vector3d obj = model->_drawVertices[index];
 			Math::Vector3d win;
-			Math::gluMathProject<GLdouble, GLint>(obj, modelView, projection, viewPort, win);
+			Math::gluMathProject<GLfloat, GLint>(obj, modelView, projection, viewPort, win);
 
 			if (win.x() > right)
 				right = win.x();
@@ -466,10 +466,10 @@ void GfxOpenGL::getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, in
 		}
 	}
 
-	double t = bottom;
+	float t = bottom;
 	bottom = _gameHeight - top;
 	top = _gameHeight - t;
-	
+
 	if (left < 0)
 		left = 0;
 	if (right >= _gameWidth)
@@ -478,7 +478,7 @@ void GfxOpenGL::getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, in
 		top = 0;
 	if (bottom >= _gameHeight)
 		bottom = _gameHeight - 1;
-	
+
 	if (top >= _gameHeight || left >= _gameWidth || bottom < 0 || right < 0) {
 		*x1 = -1;
 		*y1 = -1;
@@ -486,7 +486,7 @@ void GfxOpenGL::getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, in
 		*y2 = -1;
 		return;
 	}
-	
+
 	*x1 = (int)left;
 	*y1 = (int)top;
 	*x2 = (int)right;
@@ -505,15 +505,17 @@ void GfxOpenGL::getActorScreenBBox(const Actor *actor, Common::Point &p1, Common
 	// Set up the camera coordinate system
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
+
+	// Apply the view transform.
 	Math::Matrix4 worldRot = _currentRot;
 	glMultMatrixf(worldRot.getData());
 	glTranslatef(-_currentPos.x(), -_currentPos.y(), -_currentPos.z());
 
 	// Get the current OpenGL state
-	GLdouble modelView[16], projection[16];
+	GLfloat modelView[16], projection[16];
 	GLint viewPort[4];
-	glGetDoublev(GL_MODELVIEW_MATRIX, modelView);
-	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelView);
+	glGetFloatv(GL_PROJECTION_MATRIX, projection);
 	glGetIntegerv(GL_VIEWPORT, viewPort);
 
 	// Set values outside of the screen range
@@ -530,7 +532,7 @@ void GfxOpenGL::getActorScreenBBox(const Actor *actor, Common::Point &p1, Common
 				Math::Vector3d added(bboxSize.x() * 0.5f * (x * 2 - 1), bboxSize.y() * 0.5f * (y * 2 - 1), bboxSize.z() * 0.5f * (z * 2 - 1));
 				m.transform(&added, false);
 				p = bboxPos + added;
-				Math::gluMathProject<GLdouble, GLint>(p, modelView, projection, viewPort, projected);
+				Math::gluMathProject<GLfloat, GLint>(p, modelView, projection, viewPort, projected);
 
 				// Find the points
 				if (projected.x() < p1.x)
@@ -718,7 +720,6 @@ void GfxOpenGL::setShadowMode() {
 
 void GfxOpenGL::clearShadowMode() {
 	GfxBase::clearShadowMode();
-
 	glDisable(GL_STENCIL_TEST);
 	glDepthMask(GL_TRUE);
 }
@@ -827,8 +828,8 @@ void GfxOpenGL::drawSprite(const Sprite *sprite) {
 	glPushMatrix();
 
 	if (g_grim->getGameType() == GType_MONKEY4) {
-		GLdouble modelview[16];
-		glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+		GLfloat modelview[16];
+		glGetFloatv(GL_MODELVIEW_MATRIX, modelview);
 		Math::Matrix4 act;
 		act.buildAroundZ(_currentActor->getYaw());
 		act.transpose();
@@ -839,8 +840,8 @@ void GfxOpenGL::drawSprite(const Sprite *sprite) {
 		glTranslatef(sprite->_pos.x(), sprite->_pos.y(), -sprite->_pos.z());
 	} else {
 		glTranslatef(sprite->_pos.x(), sprite->_pos.y(), sprite->_pos.z());
-		GLdouble modelview[16];
-		glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+		GLfloat modelview[16];
+		glGetFloatv(GL_MODELVIEW_MATRIX, modelview);
 
 		// We want screen-aligned sprites so reset the rotation part of the matrix.
 		for (int i = 0; i < 3; i++) {
@@ -852,7 +853,7 @@ void GfxOpenGL::drawSprite(const Sprite *sprite) {
 				}
 			}
 		}
-		glLoadMatrixd(modelview);
+		glLoadMatrixf(modelview);
 	}
 
 	if (sprite->_flags1 & Sprite::BlendAdditive) {
@@ -866,7 +867,7 @@ void GfxOpenGL::drawSprite(const Sprite *sprite) {
 	if (g_grim->getGameType() == GType_GRIM) {
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GEQUAL, 0.5f);
-	}  else if (sprite->_flags2 & Sprite::AlphaTest) {
+	} else if (sprite->_flags2 & Sprite::AlphaTest) {
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GEQUAL, 0.1f);
 	} else {
@@ -1461,12 +1462,11 @@ void GfxOpenGL::createTexture(Texture *texture, const uint8 *data, const CMap *c
 	uint8 *texdatapos = texdata;
 
 	if (cmap != nullptr) { // EMI doesn't have colour-maps
-		int bytes = 4;
 		for (int y = 0; y < texture->_height; y++) {
 			for (int x = 0; x < texture->_width; x++) {
 				uint8 col = *data;
 				if (col == 0) {
-					memset(texdatapos, 0, bytes); // transparent
+					memset(texdatapos, 0, 4); // transparent
 					if (!texture->_hasAlpha) {
 						texdatapos[3] = '\xff'; // fully opaque
 					}
@@ -1474,7 +1474,7 @@ void GfxOpenGL::createTexture(Texture *texture, const uint8 *data, const CMap *c
 					memcpy(texdatapos, cmap->_colors + 3 * (col), 3);
 					texdatapos[3] = '\xff'; // fully opaque
 				}
-				texdatapos += bytes;
+				texdatapos += 4;
 				data++;
 			}
 		}
