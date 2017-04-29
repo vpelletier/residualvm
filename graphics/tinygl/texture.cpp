@@ -114,6 +114,116 @@ void glopBindTexture(GLContext *c, GLParam *p) {
 	c->current_texture = t;
 }
 
+#define _TGL_FORMAT_TYPE(format, type) ((format) << 16 | (type))
+static Graphics::PixelFormat formatType2PixelFormat(int format, int type) {
+	switch (_TGL_FORMAT_TYPE(format, type)) {
+// RGBA8888
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_BYTE):
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_BYTE):
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_INT_8_8_8_8):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_INT_8_8_8_8_REV):
+#endif
+			return Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
+// ABGR8888
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_INT_8_8_8_8_REV):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_INT_8_8_8_8):
+#endif
+			return Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
+// BGRA8888
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_BYTE):
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_BYTE):
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_INT_8_8_8_8):
+#else
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_INT_8_8_8_8_REV):
+#endif
+			return Graphics::PixelFormat(4, 8, 8, 8, 8, 16, 8, 0, 24);
+// ARGB8888
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_INT_8_8_8_8_REV):
+#else
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_INT_8_8_8_8):
+#endif
+			return Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 0, 8, 16);
+// RGBA5551
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_SHORT_5_5_5_1):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_SHORT_1_5_5_5_REV):
+#endif
+			return Graphics::PixelFormat(2, 5, 5, 5, 1, 0, 5, 10, 15);
+// ABGR1555
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_SHORT_1_5_5_5_REV):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGBA, TGL_UNSIGNED_SHORT_5_5_5_1):
+#endif
+			return Graphics::PixelFormat(2, 5, 5, 5, 1, 15, 10, 5, 0);
+// BGRA5551
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_SHORT_5_5_5_1):
+#else
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_SHORT_1_5_5_5_REV):
+#endif
+			return Graphics::PixelFormat(2, 5, 5, 5, 1, 10, 5, 0, 15);
+// ARGB1555
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_SHORT_1_5_5_5_REV):
+#else
+		case _TGL_FORMAT_TYPE(TGL_BGRA, TGL_UNSIGNED_SHORT_5_5_5_1):
+#endif
+			return Graphics::PixelFormat(2, 5, 5, 5, 1, 15, 0, 5, 10);
+// RGB888
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_BYTE):
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_BYTE):
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_INT_8_8_8_8):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_INT_8_8_8_8_REV):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_INT_8_8_8_8_REV):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_INT_8_8_8_8):
+#endif
+			return Graphics::PixelFormat(3, 8, 8, 8, 0, 0, 8, 16, 0);
+// BGR888
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_BYTE):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_BYTE):
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_INT_8_8_8_8_REV):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_INT_8_8_8_8):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_INT_8_8_8_8):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_INT_8_8_8_8_REV):
+#endif
+			return Graphics::PixelFormat(3, 8, 8, 8, 0, 16, 8, 0, 0);
+// RGB565
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_SHORT_5_6_5):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_SHORT_5_6_5_REV):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_SHORT_5_6_5_REV):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_SHORT_5_6_5):
+#endif
+			return Graphics::PixelFormat(2, 5, 6, 5, 0, 0, 5, 11, 0);
+// BGR565
+#if defined(SCUMM_BIG_ENDIAN)
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_SHORT_5_6_5_REV):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_SHORT_5_6_5):
+#else
+		case _TGL_FORMAT_TYPE(TGL_RGB, TGL_UNSIGNED_SHORT_5_6_5):
+		case _TGL_FORMAT_TYPE(TGL_BGR, TGL_UNSIGNED_SHORT_5_6_5_REV):
+#endif
+			return Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0);
+
+		default:
+			error("format %04x and type %04x combination not supported", format, type);
+	}
+}
+#undef _TGL_FORMAT_TYPE
+
 void glopTexImage2D(GLContext *c, GLParam *p) {
 	int target = p[1].i;
 	int level = p[2].i;
@@ -132,23 +242,6 @@ void glopTexImage2D(GLContext *c, GLParam *p) {
 		error("tglTexImage2D: invalid level");
 	if (border != 0)
 		error("tglTexImage2D: invalid border");
-	Graphics::PixelFormat sourceFormat;
-	switch (format) {
-		case TGL_RGBA:
-			sourceFormat = Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
-			break;
-		case TGL_RGB:
-			sourceFormat = Graphics::PixelFormat(3, 8, 8, 8, 0, 0, 8, 16, 0);
-			break;
-		case TGL_BGRA:
-			sourceFormat = Graphics::PixelFormat(4, 8, 8, 8, 8, 16, 8, 0, 24);
-			break;
-		case TGL_BGR:
-			sourceFormat = Graphics::PixelFormat(3, 8, 8, 8, 0, 16, 8, 0, 0);
-			break;
-		default:
-			error("tglTexImage2D: Pixel format not handled.");
-	}
 
 	Graphics::PixelFormat pf;
 	switch (format) {
@@ -177,7 +270,7 @@ void glopTexImage2D(GLContext *c, GLParam *p) {
 		DisposeAfterUse::NO
 	);
 	if (pixels != NULL) {
-		Graphics::PixelBuffer src(sourceFormat, pixels);
+		Graphics::PixelBuffer src(formatType2PixelFormat(format, type), pixels);
 		if (width != c->_textureSize || height != c->_textureSize) {
 			int filter;
 			// XXX: per-direction filtering ?
