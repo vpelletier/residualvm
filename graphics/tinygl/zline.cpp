@@ -31,30 +31,30 @@
 namespace TinyGL {
 
 template <bool kDepthWrite>
-FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, int color, int x, int y, unsigned int z) {
+FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, byte a, byte r, byte g, byte b, int x, int y, unsigned int z) {
 	if (_enableScissor)
-		putPixel<kDepthWrite, true>(pixelOffset, color, x, y, z);
+		putPixel<kDepthWrite, true>(pixelOffset, a, r, g, b, x, y, z);
 	else
-		putPixel<kDepthWrite, false>(pixelOffset, color, x, y, z);
+		putPixel<kDepthWrite, false>(pixelOffset, a, r, g, b, x, y, z);
 }
 
 template <bool kDepthWrite, bool kEnableScissor>
-FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, int color, int x, int y, unsigned int z) {
+FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, byte a, byte r, byte g, byte b, int x, int y, unsigned int z) {
 	if (kEnableScissor && scissorPixel(x, y)) {
 		return;
 	}
 	unsigned int *pz = _zbuf + pixelOffset;
 	if (compareDepth(z, *pz)) {
-		writePixel<true, true, kDepthWrite>(pixelOffset, color, z);
+		writePixel<true, true, kDepthWrite>(pixelOffset, a, r, g, b, z);
 	}
 }
 
 template <bool kEnableScissor>
-FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, int color, int x, int y) {
+FORCEINLINE void FrameBuffer::putPixel(unsigned int pixelOffset, byte a, byte r, byte g, byte b, int x, int y) {
 	if (kEnableScissor && scissorPixel(x, y)) {
 		return;
 	}
-	writePixel<true, true>(pixelOffset, color);
+	writePixel<true, true>(pixelOffset, a, r, g, b);
 }
 
 template <bool kInterpRGB, bool kInterpZ, bool kDepthWrite>
@@ -102,7 +102,6 @@ void FrameBuffer::drawLine(const ZBufferPoint *p1, const ZBufferPoint *p2) {
 	int r = p1->r >> (ZB_POINT_RED_BITS - 8);
 	int g = p1->g >> (ZB_POINT_GREEN_BITS - 8);
 	int b = p1->b >> (ZB_POINT_BLUE_BITS - 8);
-	int color = RGB_TO_PIXEL(r, g, b);
 	int sr, sg, sb;
 
         if (kInterpZ) {
@@ -116,9 +115,9 @@ void FrameBuffer::drawLine(const ZBufferPoint *p1, const ZBufferPoint *p2) {
 	}
 	while (n--) {
 		if (kInterpZ)
-			putPixel<kDepthWrite, kEnableScissor>(pixelOffset, color, x, y, z);
+			putPixel<kDepthWrite, kEnableScissor>(pixelOffset, 255, r, g, b, x, y, z);
 		else
-			putPixel<kEnableScissor>(pixelOffset, color, x, y);
+			putPixel<kEnableScissor>(pixelOffset, 255, r, g, b, x, y);
 		e2 = err;
 		if (e2 > -dx) {
 			err -= dy;
@@ -136,19 +135,17 @@ void FrameBuffer::drawLine(const ZBufferPoint *p1, const ZBufferPoint *p2) {
 			r += sr;
 			g += sg;
 			b += sb;
-			color = RGB_TO_PIXEL(r, g, b);
 		}
 	}
 }
 
 void FrameBuffer::plot(ZBufferPoint *p) {
 	const unsigned int pixelOffset = p->y * xsize + p->x;
-	const int col = RGB_TO_PIXEL(p->r, p->g, p->b);
 	const unsigned int z = p->z;
 	if (_depthWrite && _depthTestEnabled)
-		putPixel<true>(pixelOffset, col, p->x, p->y, z);
+		putPixel<true>(pixelOffset, 0xff, p->r, p->g, p->b, p->x, p->y, z);
 	else 
-		putPixel<false>(pixelOffset, col, p->x, p->y, z);
+		putPixel<false>(pixelOffset, 0xff, p->r, p->g, p->b, p->x, p->y, z);
 }
 
 void FrameBuffer::fillLineFlatZ(ZBufferPoint *p1, ZBufferPoint *p2) {

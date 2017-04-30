@@ -65,8 +65,6 @@ namespace TinyGL {
 #define ZB_POINT_ALPHA_FRAC_SHIFT (ZB_POINT_ALPHA_FRAC_BITS - 1)
 #define ZB_POINT_ALPHA_MAX        ( (1 << ZB_POINT_ALPHA_BITS) - 1 )
 
-#define RGB_TO_PIXEL(r, g, b) cmode.ARGBToColor(255, r, g, b) // Default to 255 alpha aka solid colour.
-
 static const int DRAW_DEPTH_ONLY = 0;
 static const int DRAW_FLAT = 1;
 static const int DRAW_SMOOTH = 2;
@@ -192,43 +190,6 @@ struct FrameBuffer {
 			return true;
 		}
 		return false;
-	}
-
-	template <bool kEnableAlphaTest, bool kBlendingEnabled>
-	FORCEINLINE void writePixel(int pixel, int value) {
-		writePixel<kEnableAlphaTest, kBlendingEnabled, false>(pixel, value, 0);
-	}
-
-	template <bool kEnableAlphaTest, bool kBlendingEnabled, bool kDepthWrite>
-	FORCEINLINE void writePixel(int pixel, int value, unsigned int z) {
-		if (kBlendingEnabled == false) {
-			this->pbuf.setPixelAt(pixel, value);
-			if (kDepthWrite) {
-				_zbuf[pixel] = z;
-			}
-		} else {
-			byte rSrc, gSrc, bSrc, aSrc;
-			this->pbuf.getFormat().colorToARGB(value, aSrc, rSrc, gSrc, bSrc);
-
-			writePixel<kEnableAlphaTest, kBlendingEnabled, kDepthWrite>(pixel, aSrc, rSrc, gSrc, bSrc, z);
-		}
-	}
-
-	FORCEINLINE void writePixel(int pixel, int value) {
-		if (_alphaTestEnabled) {
-			writePixel<true>(pixel, value);
-		} else {
-			writePixel<false>(pixel, value);
-		}
-	}
-
-	template <bool kEnableAlphaTest>
-	FORCEINLINE void writePixel(int pixel, int value) {
-		if (_blendingEnabled) {
-			writePixel<kEnableAlphaTest, true>(pixel, value);
-		} else {
-			writePixel<kEnableAlphaTest, false>(pixel, value);
-		}
 	}
 
 	FORCEINLINE void writePixel(int pixel, byte rSrc, byte gSrc, byte bSrc) {
@@ -498,13 +459,13 @@ struct FrameBuffer {
 private:
 
 	template <bool kDepthWrite>
-	FORCEINLINE void putPixel(unsigned int pixelOffset, int color, int x, int y, unsigned int z);
+	FORCEINLINE void putPixel(unsigned int pixelOffset, byte a, byte r, byte g, byte b, int x, int y, unsigned int z);
 
 	template <bool kDepthWrite, bool kEnableScissor>
-	FORCEINLINE void putPixel(unsigned int pixelOffset, int color, int x, int y, unsigned int z);
+	FORCEINLINE void putPixel(unsigned int pixelOffset, byte a, byte r, byte g, byte b, int x, int y, unsigned int z);
 
 	template <bool kEnableScissor>
-	FORCEINLINE void putPixel(unsigned int pixelOffset, int color, int x, int y);
+	FORCEINLINE void putPixel(unsigned int pixelOffset, byte a, byte r, byte g, byte b, int x, int y);
 
 	template <bool kInterpRGB, bool kInterpZ, bool kDepthWrite>
 	void drawLine(const ZBufferPoint *p1, const ZBufferPoint *p2);
