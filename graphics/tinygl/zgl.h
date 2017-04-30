@@ -280,6 +280,7 @@ struct GLContext {
 	int texture_2d_enabled;
 	int texture_mag_filter;
 	int texture_min_filter;
+	Graphics::PixelFormat texture_internal_pf;
 
 	// shared state
 	GLSharedState shared_state;

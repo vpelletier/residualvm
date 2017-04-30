@@ -98,6 +98,27 @@ void glInitTextures(GLContext *c) {
 	c->current_texture = find_texture(c, 0);
 	c->texture_mag_filter = TGL_LINEAR;
 	c->texture_min_filter = TGL_NEAREST_MIPMAP_LINEAR;
+	Graphics::PixelFormat pf = c->fb->getFormat();
+	if (pf.bytesPerPixel == 4) {
+		if (pf.aLoss) {
+			int color = pf.ARGBToColor(0, 0xff, 0xff, 0xff);
+			while (pf.aShift < 24 && color & 0xff) {
+				pf.aShift++;
+				color >>= 1;
+			}
+			if (color & 0xff)
+				// Anything 32bits with alpha should be equivalent
+				pf = Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
+			else
+				pf.aLoss = 0;
+		}
+		// else, surface has full-precision alpha, use it internally
+		// to save a lot of color translations
+	} else
+		// Anything 32bits with alpha should be equivalent
+		pf = Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
+	assert(pf.ARGBToColor(0xff, 0xff, 0xff, 0xff) == 0xffffffff);
+	c->texture_internal_pf = pf;
 }
 
 void glopBindTexture(GLContext *c, GLParam *p) {
@@ -244,7 +265,7 @@ void glopTexImage2D(GLContext *c, GLParam *p) {
 		error("tglTexImage2D: invalid border");
 
 	Graphics::PixelBuffer internal(
-		Graphics::PixelFormat(4, 8, 8, 8, 8, 16, 8, 0, 24),
+		c->texture_internal_pf,
 		c->_textureSize * c->_textureSize,
 		DisposeAfterUse::NO
 	);
