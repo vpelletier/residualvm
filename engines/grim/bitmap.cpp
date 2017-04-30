@@ -459,7 +459,7 @@ void BitmapData::convertToColorFormat(int num, const Graphics::PixelFormat &form
 
 	Graphics::PixelBuffer dst(format, _width * _height, DisposeAfterUse::NO);
 
-	for (int i = 0; i < _width * _height; ++i) {
+	for (unsigned int i = 0; i < _width * _height; ++i) {
 		dst.setPixelAt(i, _data[num]);
 	}
 	_data[num].free();

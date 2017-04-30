@@ -1022,7 +1022,7 @@ void GfxOpenGL::createBitmap(BitmapData *bitmap) {
 	if (bitmap->_format != 1) {
 		for (int pic = 0; pic < bitmap->_numImages; pic++) {
 			uint16 *zbufPtr = reinterpret_cast<uint16 *>(bitmap->getImageData(pic).getRawBuffer());
-			for (int i = 0; i < (bitmap->_width * bitmap->_height); i++) {
+			for (unsigned int i = 0; i < (bitmap->_width * bitmap->_height); i++) {
 				uint16 val = READ_LE_UINT16(zbufPtr + i);
 				// fix the value if it is incorrectly set to the bitmap transparency color
 				if (val == 0xf81f) {
@@ -1033,10 +1033,10 @@ void GfxOpenGL::createBitmap(BitmapData *bitmap) {
 
 			// Flip the zbuffer image to match what GL expects
 			if (!_useDepthShader) {
-				for (int y = 0; y < bitmap->_height / 2; y++) {
+				for (unsigned int y = 0; y < bitmap->_height / 2; y++) {
 					uint16 *ptr1 = zbufPtr + y * bitmap->_width;
 					uint16 *ptr2 = zbufPtr + (bitmap->_height - 1 - y) * bitmap->_width;
-					for (int x = 0; x < bitmap->_width; x++, ptr1++, ptr2++) {
+					for (unsigned int x = 0; x < bitmap->_width; x++, ptr1++, ptr2++) {
 						uint16 tmp = *ptr1;
 						*ptr1 = *ptr2;
 						*ptr2 = tmp;
@@ -1075,7 +1075,7 @@ void GfxOpenGL::createBitmap(BitmapData *bitmap) {
 				// Convert data to 32-bit RGBA format
 				byte *texDataPtr = texData;
 				uint16 *bitmapData = reinterpret_cast<uint16 *>(bitmap->getImageData(pic).getRawBuffer());
-				for (int i = 0; i < bitmap->_width * bitmap->_height; i++, texDataPtr += bytes, bitmapData++) {
+				for (unsigned int i = 0; i < bitmap->_width * bitmap->_height; i++, texDataPtr += bytes, bitmapData++) {
 					uint16 pixel = *bitmapData;
 					int r = pixel >> 11;
 					texDataPtr[0] = (r << 3) | (r >> 2);
@@ -1109,8 +1109,8 @@ void GfxOpenGL::createBitmap(BitmapData *bitmap) {
 
 			int cur_tex_idx = bitmap->_numTex * pic;
 
-			for (int y = 0; y < bitmap->_height; y += BITMAP_TEXTURE_SIZE) {
-				for (int x = 0; x < bitmap->_width; x += BITMAP_TEXTURE_SIZE) {
+			for (unsigned int y = 0; y < bitmap->_height; y += BITMAP_TEXTURE_SIZE) {
+				for (unsigned int x = 0; x < bitmap->_width; x += BITMAP_TEXTURE_SIZE) {
 					int width  = (x + BITMAP_TEXTURE_SIZE >= bitmap->_width) ? (bitmap->_width - x) : BITMAP_TEXTURE_SIZE;
 					int height = (y + BITMAP_TEXTURE_SIZE >= bitmap->_height) ? (bitmap->_height - y) : BITMAP_TEXTURE_SIZE;
 					glBindTexture(GL_TEXTURE_2D, textures[cur_tex_idx]);

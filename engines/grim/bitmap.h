@@ -90,7 +90,8 @@ public:
 
 	Common::String _fname;
 	int _numImages;
-	int _width, _height, _x, _y;
+	unsigned int _width, _height;
+	int _x, _y;
 	int _format;
 	int _numTex;
 	int _bpp;
