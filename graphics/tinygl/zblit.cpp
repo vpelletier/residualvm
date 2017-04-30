@@ -53,8 +53,8 @@ public:
 		if (applyColorKey) {
 			for (int x = 0; x < size; x++) {
 				if (buffer.getValueAt(x) == colorKey) {
-					// Color keyed pixels become transparent white.
-					dataBuffer.setPixelAt(x, 0, 255, 255, 255);
+					// Color keyed pixels become transparent black.
+					dataBuffer.setPixelAt(x, 0, 0, 0, 0);
 				}
 			}
 		}
