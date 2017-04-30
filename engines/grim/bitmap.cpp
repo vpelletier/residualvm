@@ -308,9 +308,7 @@ bool BitmapData::loadTile(Common::SeekableReadStream *o) {
 	}
 
 	o->seek(16, SEEK_CUR);
-	int numSubImages = o->readUint32LE();
-
-	char **data = new char *[numSubImages];
+	_numImages = o->readUint32LE();
 
 	o->seek(16, SEEK_CUR);
 	_bpp = o->readUint32LE();
@@ -321,46 +319,27 @@ bool BitmapData::loadTile(Common::SeekableReadStream *o) {
 	_height = o->readUint32LE();
 	o->seek(-8, SEEK_CUR);
 
-	int size = 4 * _width * _height;
-	for (int i = 0; i < numSubImages; ++i) {
-		data[i] = new char[size];
-		o->seek(8, SEEK_CUR);
-		if (_bpp == 16) {
-			uint32 *d = (uint32 *)data[i];
-			for (int j = 0; j < _width * _height; ++j) {
-				uint16 p = o->readUint16LE();
-				// These values are shifted left by 3 so that they saturate the color channel
-				uint8 b = (p & 0x7C00) >> 7;
-				uint8 g = (p & 0x03E0) >> 2;
-				uint8 r = (p & 0x001F) << 3;
-				uint8 a = (p & 0x8000) ? 0xFF : 0x00;
-				// Recombine the color components into a 32 bit RGB value
-				uint32 tmp = (r << 24) | (g << 16) | (b << 8) | a;
-				WRITE_BE_UINT32(&d[j], tmp);
-			}
-		} else if (_bpp == 32) {
-			uint32 *d = (uint32 *)data[i];
-			for (int j = 0; j < _width * _height; ++j) {
-				o->read(&(d[j]), 4);
-			}
-		}
-	}
-	_bpp = 32;
-
-	Graphics::PixelFormat pixelFormat = Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
 	_colorFormat = BM_RGBA;
-
-	_width = 256;
-	_height = 256;
-	_numImages = numSubImages;
+	Graphics::PixelFormat pixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
+	Graphics::PixelFormat originalFormat;
+	if (_bpp == 16) {
+		originalFormat = Graphics::PixelFormat(2, 5, 5, 5, 1, 0, 5, 10, 15);
+	} else if (_bpp == 32) {
+		originalFormat = Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
+	} else
+		error("BitmapData::loadTile: Unsupported bpp %i", _bpp);
+	int pixel_count = _width * _height;
+	int byte_count = pixel_count * originalFormat.bytesPerPixel;
+	Graphics::PixelBuffer original(originalFormat, pixel_count, DisposeAfterUse::YES);
 	_data = new Graphics::PixelBuffer[_numImages];
 	for (int i = 0; i < _numImages; ++i) {
-		_data[i].create(pixelFormat, _width * _height, DisposeAfterUse::YES);
-		_data[i].set(pixelFormat, (byte *)data[i]);
+		assert(o->readUint32LE() == _width);
+		assert(o->readUint32LE() == _height);
+		o->read(original.getRawBuffer(), byte_count);
+		_data[i].create(pixelFormat, pixel_count, DisposeAfterUse::YES);
+		_data[i].copyBuffer(0, pixel_count, original);
 	}
-
-	delete[] data;
-
+	_bpp = 32;
 	g_driver->createBitmap(this);
 #endif // ENABLE_MONKEY4
 	return true;
