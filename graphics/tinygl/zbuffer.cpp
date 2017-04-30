@@ -83,10 +83,11 @@ void memset_l(void *adr, int val, int count) {
 FrameBuffer::FrameBuffer(int width, int height, const Graphics::PixelBuffer &frame_buffer) : _depthWrite(true), _enableScissor(false) {
 	int size;
 
+	Graphics::PixelFormat cmode;
 	this->xsize = width;
 	this->ysize = height;
-	this->cmode = frame_buffer.getFormat();
-	this->pixelbytes = this->cmode.bytesPerPixel;
+	cmode = frame_buffer.getFormat();
+	this->pixelbytes = cmode.bytesPerPixel;
 	this->linesize = (xsize * this->pixelbytes + 3) & ~3;
 
 	size = this->xsize * this->ysize * sizeof(unsigned int);
@@ -96,7 +97,7 @@ FrameBuffer::FrameBuffer(int width, int height, const Graphics::PixelBuffer &fra
 
 	if (!frame_buffer) {
 		byte *pixelBuffer = (byte *)gl_malloc(this->ysize * this->linesize);
-		this->pbuf.set(this->cmode, pixelBuffer);
+		this->pbuf.set(cmode, pixelBuffer);
 		this->frame_buffer_allocated = 1;
 	} else {
 		this->frame_buffer_allocated = 0;
@@ -150,7 +151,7 @@ void FrameBuffer::clear(int clearZ, int z, int clearColor, int r, int g, int b) 
 	}
 	if (clearColor) {
 		byte *pp = this->pbuf.getRawBuffer();
-		uint32 color = this->cmode.RGBToColor(r, g, b);
+		uint32 color = this->pbuf.getFormat().RGBToColor(r, g, b);
 		const uint8 *colorc = (uint8 *)&color;
 		unsigned int i;
 		for (i = 1; i < sizeof(color) && colorc[0] == colorc[i]; i++) { ; }
@@ -197,7 +198,7 @@ void FrameBuffer::clearRegion(int x, int y, int w, int h, int clearZ, int z, int
 	if (clearColor) {
 		int height = h;
 		byte *pp = this->pbuf.getRawBuffer() + y * this->linesize + x * this->pixelbytes;
-		uint32 color = this->cmode.RGBToColor(r, g, b);
+		uint32 color = this->pbuf.getFormat().RGBToColor(r, g, b);
 		const uint8 *colorc = (uint8 *)&color;
 		unsigned int i;
 		for (i = 1; i < sizeof(color) && colorc[0] == colorc[i]; i++) { ; }

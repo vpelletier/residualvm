@@ -109,7 +109,7 @@ public:
 		Graphics::PixelBuffer _buf; // This is needed for the conversion.
 
 		Line() : _x(0), _y(0), _length(0), _pixels(nullptr) { }
-		Line(int x, int y, int length, byte *pixels, const Graphics::PixelFormat &textureFormat) : _buf(TinyGL::gl_get_context()->fb->cmode, length, DisposeAfterUse::NO),
+		Line(int x, int y, int length, byte *pixels, const Graphics::PixelFormat &textureFormat) : _buf(TinyGL::gl_get_context()->fb->getFormat(), length, DisposeAfterUse::NO),
 					_x(x), _y(y), _length(length) {
 			// Performing texture to screen conversion.
 			Graphics::PixelBuffer srcBuf(textureFormat, pixels);
@@ -310,10 +310,10 @@ FORCEINLINE void BlitImage::tglBlitRLE(int dstX, int dstY, int srcX, int srcY, i
 	Graphics::PixelBuffer srcBuf(_surface.format, (byte *)_surface.getPixels());
 	srcBuf.shiftBy(srcX + (srcY * _surface.w));
 
-	Graphics::PixelBuffer dstBuf(c->fb->cmode, c->fb->getPixelBuffer());
+	Graphics::PixelBuffer dstBuf(c->fb->getFormat(), c->fb->getPixelBuffer());
 	dstBuf.shiftBy(dstY * c->fb->xsize + dstX);
 
-	int kBytesPerPixel = c->fb->cmode.bytesPerPixel;
+	int kBytesPerPixel = c->fb->getFormat().bytesPerPixel;
 
 	uint32 lineIndex = 0;
 	int maxY = srcY + clampHeight;
@@ -402,7 +402,7 @@ FORCEINLINE void BlitImage::tglBlitSimple(int dstX, int dstY, int srcX, int srcY
 		srcBuf.shiftBy((srcY * _surface.w));
 	}
 
-	Graphics::PixelBuffer dstBuf(c->fb->cmode, c->fb->getPixelBuffer());
+	Graphics::PixelBuffer dstBuf(c->fb->getFormat(), c->fb->getPixelBuffer());
 
 	for (int y = 0; y < clampHeight; y++) {
 		for (int x = 0; x < clampWidth; ++x) {
@@ -450,7 +450,7 @@ FORCEINLINE void BlitImage::tglBlitScale(int dstX, int dstY, int width, int heig
 	Graphics::PixelBuffer srcBuf(_surface.format, (byte *)_surface.getPixels());
 	srcBuf.shiftBy(srcX + (srcY * _surface.w));
 
-	Graphics::PixelBuffer dstBuf(c->fb->cmode, c->fb->getPixelBuffer());
+	Graphics::PixelBuffer dstBuf(c->fb->getFormat(), c->fb->getPixelBuffer());
 
 	for (int y = 0; y < clampHeight; y++) {
 		for (int x = 0; x < clampWidth; ++x) {
@@ -539,7 +539,7 @@ FORCEINLINE void BlitImage::tglBlitRotoScale(int dstX, int dstY, int width, int 
 	Graphics::PixelBuffer srcBuf(_surface.format, (byte *)_surface.getPixels());
 	srcBuf.shiftBy(srcX + (srcY * _surface.w));
 	
-	Graphics::PixelBuffer dstBuf(c->fb->cmode, c->fb->getPixelBuffer());
+	Graphics::PixelBuffer dstBuf(c->fb->getFormat(), c->fb->getPixelBuffer());
 	
 	// Transform destination rectangle accordingly.
 	Common::Rect destinationRectangle = rotateRectangle(dstX, dstY, width, height, rotation, originX, originY);

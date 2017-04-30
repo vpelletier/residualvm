@@ -424,12 +424,14 @@ struct FrameBuffer {
 	void resetScissorRectangle() {
 		_enableScissor = false;
 	}
+	inline const Graphics::PixelFormat &getFormat() const {
+		return pbuf.getFormat();
+	}
 
 	Common::Rect _clipRectangle;
 	bool _enableScissor;
 	int xsize, ysize;
 	int linesize; // line size, in bytes
-	Graphics::PixelFormat cmode;
 	int pixelbytes;
 
 	Buffer buffer;
