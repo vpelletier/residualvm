@@ -413,9 +413,9 @@ void gl_draw_triangle_fill(GLContext *c, GLVertex *p0, GLVertex *p1, GLVertex *p
 #endif
 		c->fb->setTexture(c->current_texture->images[0].pixmap);
 		if (c->current_shade_model == TGL_SMOOTH) {
-			c->fb->fillTriangleTextureMappingPerspectiveSmooth(&p0->zp, &p1->zp, &p2->zp);
+			c->fb->fillTriangleTextureMappingPerspectiveSmooth(&p0->zp, &p1->zp, &p2->zp, c->current_texture->wrap_s, c->current_texture->wrap_t);
 		} else {
-			c->fb->fillTriangleTextureMappingPerspectiveFlat(&p0->zp, &p1->zp, &p2->zp);
+			c->fb->fillTriangleTextureMappingPerspectiveFlat(&p0->zp, &p1->zp, &p2->zp, c->current_texture->wrap_s, c->current_texture->wrap_t);
 		}
 	} else if (c->current_shade_model == TGL_SMOOTH) {
 		c->fb->fillTriangleSmooth(&p0->zp, &p1->zp, &p2->zp);

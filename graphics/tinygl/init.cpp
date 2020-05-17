@@ -71,7 +71,7 @@ void glInit(void *zbuffer1, int textureSize) {
 	c->fb = zbuffer;
 
 	c->fb->_textureSize = c->_textureSize = textureSize;
-	c->fb->_textureSizeMask = (textureSize - 1) << ZB_POINT_ST_FRAC_BITS;
+	c->fb->_textureSizeMask = (textureSize << ZB_POINT_ST_FRAC_BITS) - 1;
 	c->renderRect = Common::Rect(0, 0, zbuffer->xsize, zbuffer->ysize);
 
 	// allocate GLVertex array

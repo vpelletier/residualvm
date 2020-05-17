@@ -88,6 +88,8 @@ GLTexture *alloc_texture(GLContext *c, int h) {
 	t->handle = h;
 	t->disposed = false;
 	t->versionNumber = 0;
+	t->wrap_s = TGL_REPEAT;
+	t->wrap_t = TGL_REPEAT;
 
 	return t;
 }
@@ -248,7 +250,7 @@ error:
 }
 
 // TODO: not all tests are done
-void glopTexParameter(GLContext *, GLParam *p) {
+void glopTexParameter(GLContext *c, GLParam *p) {
 	int target = p[1].i;
 	int pname = p[2].i;
 	int param = p[3].i;
@@ -260,9 +262,14 @@ error:
 
 	switch (pname) {
 	case TGL_TEXTURE_WRAP_S:
-	case TGL_TEXTURE_WRAP_T:
-		if (param != TGL_REPEAT)
+		if (param != TGL_REPEAT && param != TGL_CLAMP_TO_EDGE)
 			goto error;
+		c->current_texture->wrap_s = param;
+		break;
+	case TGL_TEXTURE_WRAP_T:
+		if (param != TGL_REPEAT && param != TGL_CLAMP_TO_EDGE)
+			goto error;
+		c->current_texture->wrap_t = param;
 		break;
 	default:
 		;

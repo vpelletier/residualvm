@@ -187,6 +187,7 @@ struct GLTexture {
 	int versionNumber;
 	struct GLTexture *next, *prev;
 	bool disposed;
+	int wrap_s, wrap_t;
 };
 
 

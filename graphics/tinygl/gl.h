@@ -658,6 +658,9 @@ enum {
 	TGL_TEXTURE_COORD_ARRAY_POINTER_EXT = 0x8092,
 	TGL_EDGE_FLAG_ARRAY_POINTER_EXT = 0x8093,
 
+	// Texture edge clamp from SDL_opengl.h
+	TGL_CLAMP_TO_EDGE               = 0x812F,
+
 	// Color-types from 1.2, from SDL_opengl.h
 	TGL_BGR                         = 0x80E0,
 	TGL_BGRA                        = 0x80E1

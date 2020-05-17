@@ -75,14 +75,31 @@ FORCEINLINE static void putPixelShadow(FrameBuffer *buffer, int buf, unsigned in
 	z += dzdx;
 }
 
-template <bool kDepthWrite, bool kLightsMode, bool kSmoothMode, bool kEnableAlphaTest, bool kEnableScissor, bool kEnableBlending>
+static inline unsigned int clamp(unsigned int value, unsigned int min, unsigned int max) {
+	if (value < min)
+		return min;
+	if (value > max)
+		return max;
+	return value;
+}
+
+template <bool kDepthWrite, bool kLightsMode, bool kSmoothMode, bool kEnableAlphaTest, bool kEnableScissor, bool kEnableBlending, int wrap_s, int wrap_t>
 FORCEINLINE static void putPixelTextureMappingPerspective(FrameBuffer *buffer, int buf,
                         Graphics::PixelFormat &textureFormat, Graphics::PixelBuffer &texture, unsigned int *pz, int _a,
                         int x, int y, unsigned int &z, unsigned int &t, unsigned int &s, unsigned int &r, unsigned int &g, unsigned int &b, unsigned int &a,
                         int &dzdx, int &dsdx, int &dtdx, int &drdx, int &dgdx, int &dbdx, unsigned int dadx) {
 	if ((!kEnableScissor || !buffer->scissorPixel(x + _a, y)) && buffer->compareDepth(z, pz[_a])) {
-		unsigned sss = (s & buffer->_textureSizeMask) >> ZB_POINT_ST_FRAC_BITS;
-		unsigned ttt = (t & buffer->_textureSizeMask) >> ZB_POINT_ST_FRAC_BITS;
+		unsigned sss, ttt;
+		if (wrap_s == TGL_REPEAT)
+			sss = s & buffer->_textureSizeMask;
+		else // TGL_CLAMP_TO_EDGE
+			sss = clamp(s, 0, buffer->_textureSizeMask);
+		sss >>= ZB_POINT_ST_FRAC_BITS;
+		if (wrap_t == TGL_REPEAT)
+			ttt = t & buffer->_textureSizeMask;
+		else // TGL_CLAMP_TO_EDGE
+			ttt = clamp(t, 0, buffer->_textureSizeMask);
+		ttt >>= ZB_POINT_ST_FRAC_BITS;
 		int pixel = ttt * buffer->_textureSize + sss;
 		uint8 c_a, c_r, c_g, c_b;
 		uint32 *textureBuffer = (uint32 *)texture.getRawBuffer(pixel);
@@ -114,7 +131,7 @@ FORCEINLINE static void putPixelTextureMappingPerspective(FrameBuffer *buffer, i
 	}
 }
 
-template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawLogic, bool kDepthWrite, bool kAlphaTestEnabled, bool kEnableScissor, bool kBlendingEnabled>
+template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawLogic, int wrap_s, int wrap_t, bool kDepthWrite, bool kAlphaTestEnabled, bool kEnableScissor, bool kBlendingEnabled>
 void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
 	Graphics::PixelBuffer texture;
 	Graphics::PixelFormat textureFormat;
@@ -546,7 +563,7 @@ void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint 
 							zinv = (float)(1.0 / fz);
 						}
 						for (int _a = 0; _a < NB_INTERP; _a++) {
-							putPixelTextureMappingPerspective<kDepthWrite, kInterpRGB, kDrawLogic == DRAW_SMOOTH, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled>(this, buf, textureFormat, texture,
+							putPixelTextureMappingPerspective<kDepthWrite, kInterpRGB, kDrawLogic == DRAW_SMOOTH, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled, wrap_s, wrap_t>(this, buf, textureFormat, texture,
 							                           pz, _a, x, y, z, t, s, r, g, b, a, dzdx, dsdx, dtdx, drdx, dgdx, dbdx, dadx);
 						}
 						pz += NB_INTERP;
@@ -568,7 +585,7 @@ void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint 
 					}
 
 					while (n >= 0) {
-						putPixelTextureMappingPerspective<kDepthWrite, kInterpRGB, kDrawLogic == DRAW_SMOOTH, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled>(this, buf, textureFormat, texture,
+						putPixelTextureMappingPerspective<kDepthWrite, kInterpRGB, kDrawLogic == DRAW_SMOOTH, kAlphaTestEnabled, kEnableScissor, kBlendingEnabled, wrap_s, wrap_t>(this, buf, textureFormat, texture,
 						                           pz, 0, x, y, z, t, s, r, g, b, a, dzdx, dsdx, dtdx, drdx, dgdx, dbdx, dadx);
 						pz += 1;
 						buf += 1;
@@ -630,39 +647,39 @@ void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint 
 	}
 }
 
-template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode, bool kDepthWrite, bool kEnableAlphaTest, bool kEnableScissor>
+template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode, int wrap_s, int wrap_t, bool kDepthWrite, bool kEnableAlphaTest, bool kEnableScissor>
 void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
 	if (_blendingEnabled) {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, kDepthWrite, kEnableAlphaTest, kEnableScissor, true>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, kDepthWrite, kEnableAlphaTest, kEnableScissor, true>(p0, p1, p2);
 	} else {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, kDepthWrite, kEnableAlphaTest, kEnableScissor, false>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, kDepthWrite, kEnableAlphaTest, kEnableScissor, false>(p0, p1, p2);
 	}
 }
 
-template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode, bool kDepthWrite, bool kEnableAlphaTest>
+template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode, int wrap_s, int wrap_t, bool kDepthWrite, bool kEnableAlphaTest>
 void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
 	if (_enableScissor) {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, kDepthWrite, kEnableAlphaTest, true>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, kDepthWrite, kEnableAlphaTest, true>(p0, p1, p2);
 	} else {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, kDepthWrite, kEnableAlphaTest, false>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, kDepthWrite, kEnableAlphaTest, false>(p0, p1, p2);
 	}
 }
 
-template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode, bool kDepthWrite>
+template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode, int wrap_s, int wrap_t, bool kDepthWrite>
 void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
 	if (_alphaTestEnabled) {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, kDepthWrite, true>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, kDepthWrite, true>(p0, p1, p2);
 	}  else {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, kDepthWrite, false>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, kDepthWrite, false>(p0, p1, p2);
 	}
 }
 
-template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode>
+template <bool kInterpRGB, bool kInterpZ, bool kInterpST, bool kInterpSTZ, int kDrawMode, int wrap_s, int wrap_t>
 void FrameBuffer::fillTriangle(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
 	if (_depthWrite) {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, true>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, true>(p0, p1, p2);
 	} else {
-		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, false>(p0, p1, p2);
+		fillTriangle<kInterpRGB, kInterpZ, kInterpST, kInterpSTZ, kDrawMode, wrap_s, wrap_t, false>(p0, p1, p2);
 	}
 }
 
@@ -672,9 +689,9 @@ void FrameBuffer::fillTriangleDepthOnly(ZBufferPoint *p0, ZBufferPoint *p1, ZBuf
 	const bool interpST = false;
 	const bool interpSTZ = false;
 	if (_depthWrite && _depthTestEnabled)
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_DEPTH_ONLY, true>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_DEPTH_ONLY, true, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 	else 
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_DEPTH_ONLY, false>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_DEPTH_ONLY, false, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 }
 
 void FrameBuffer::fillTriangleFlat(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
@@ -683,9 +700,9 @@ void FrameBuffer::fillTriangleFlat(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPo
 	const bool interpST = false;
 	const bool interpSTZ = false;
 	if (_depthWrite && _depthTestEnabled)
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, true>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, true, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 	else
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, false>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, false, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 }
 
 // Smooth filled triangle.
@@ -695,31 +712,61 @@ void FrameBuffer::fillTriangleSmooth(ZBufferPoint *p0, ZBufferPoint *p1, ZBuffer
 	const bool interpST = false;
 	const bool interpSTZ = false;
 	if (_depthWrite && _depthTestEnabled)
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, true>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, true, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 	else
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, false>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, false, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 }
 
-void FrameBuffer::fillTriangleTextureMappingPerspectiveSmooth(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
+void FrameBuffer::fillTriangleTextureMappingPerspectiveSmooth(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2, int wrap_s, int wrap_t) {
 	const bool interpZ = true;
 	const bool interpRGB = true;
 	const bool interpST = false;
 	const bool interpSTZ = true;
-	if (_depthWrite && _depthTestEnabled)
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, true>(p0, p1, p2);
-	else
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, false>(p0, p1, p2);
+	if (_depthWrite && _depthTestEnabled) {
+		if (wrap_s == TGL_REPEAT && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, true, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
+		else if (wrap_s == TGL_REPEAT && wrap_t == TGL_CLAMP_TO_EDGE)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, true, TGL_REPEAT, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+		else if (wrap_s == TGL_CLAMP_TO_EDGE && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, true, TGL_CLAMP_TO_EDGE, TGL_REPEAT>(p0, p1, p2);
+		else
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, true, TGL_CLAMP_TO_EDGE, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+	} else {
+		if (wrap_s == TGL_REPEAT && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, false, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
+		else if (wrap_s == TGL_REPEAT && wrap_t == TGL_CLAMP_TO_EDGE)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, false, TGL_REPEAT, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+		else if (wrap_s == TGL_CLAMP_TO_EDGE && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, false, TGL_CLAMP_TO_EDGE, TGL_REPEAT>(p0, p1, p2);
+		else
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SMOOTH, false, TGL_CLAMP_TO_EDGE, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+	}
 }
 
-void FrameBuffer::fillTriangleTextureMappingPerspectiveFlat(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
+void FrameBuffer::fillTriangleTextureMappingPerspectiveFlat(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2, int wrap_s, int wrap_t) {
 	const bool interpZ = true;
 	const bool interpRGB = true;
 	const bool interpST = false;
 	const bool interpSTZ = true;
-	if (_depthWrite && _depthTestEnabled)
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, true>(p0, p1, p2);
-	else
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, false>(p0, p1, p2);
+	if (_depthWrite && _depthTestEnabled) {
+		if (wrap_s == TGL_REPEAT && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, true, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
+		else if (wrap_s == TGL_REPEAT && wrap_t == TGL_CLAMP_TO_EDGE)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, true, TGL_REPEAT, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+		else if (wrap_s == TGL_CLAMP_TO_EDGE && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, true, TGL_CLAMP_TO_EDGE, TGL_REPEAT>(p0, p1, p2);
+		else
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, true, TGL_CLAMP_TO_EDGE, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+	} else {
+		if (wrap_s == TGL_REPEAT && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, false, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
+		else if (wrap_s == TGL_REPEAT && wrap_t == TGL_CLAMP_TO_EDGE)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, false, TGL_REPEAT, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+		else if (wrap_s == TGL_CLAMP_TO_EDGE && wrap_t == TGL_REPEAT)
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, false, TGL_CLAMP_TO_EDGE, TGL_REPEAT>(p0, p1, p2);
+		else
+			fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_FLAT, false, TGL_CLAMP_TO_EDGE, TGL_CLAMP_TO_EDGE>(p0, p1, p2);
+	}
 }
 
 void FrameBuffer::fillTriangleFlatShadowMask(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
@@ -728,9 +775,9 @@ void FrameBuffer::fillTriangleFlatShadowMask(ZBufferPoint *p0, ZBufferPoint *p1,
 	const bool interpST = false;
 	const bool interpSTZ = false;
 	if (_depthWrite && _depthTestEnabled)
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW_MASK, true>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW_MASK, true, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 	else
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW_MASK, false>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW_MASK, false, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 }
 
 void FrameBuffer::fillTriangleFlatShadow(ZBufferPoint *p0, ZBufferPoint *p1, ZBufferPoint *p2) {
@@ -739,9 +786,9 @@ void FrameBuffer::fillTriangleFlatShadow(ZBufferPoint *p0, ZBufferPoint *p1, ZBu
 	const bool interpST = false;
 	const bool interpSTZ = false;
 	if (_depthWrite && _depthTestEnabled)
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW, true>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW, true, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 	else
-		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW, false>(p0, p1, p2);
+		fillTriangle<interpRGB, interpZ, interpST, interpSTZ, DRAW_SHADOW, false, TGL_REPEAT, TGL_REPEAT>(p0, p1, p2);
 }
 
 } // end of namespace TinyGL
